@@ -18,7 +18,7 @@ Yalnızca sizin etkinleştirdiğiniz sitelerde, seçtiğiniz aralıkla (30 sn �
 | --- | --- |
 | Kullanıcı etkinliği taklidi | Sayfanın hareketsizlik sayacının dinlediği `mousemove`, `pointermove`, `keydown/keyup (Shift)` ve `scroll` olaylarını gönderir. Tıklama veya tuş girişi yapmaz. |
 | Sekmeyi görünür tut | `document.hidden`, `visibilityState` ve `hasFocus()` değerlerini her zaman "görünür / odaklı" döndürür; sekme arka plandayken çıkış yapan sayfaları engeller. |
-| Sunucu oturumunu yenile | Açık sayfanın adresine arka planda aynı-site `GET` isteği atar; sunucu tarafındaki oturum süresi sıfırlanır. Sekme yanıt veremezse istek uzantının arka plan çalışanından gönderilir. |
+| Sunucu oturumunu yenile (varsayılan kapalı) | Sayfanın içinden, sayfanın kendi çerezleriyle sitenin kök adresine (`/`) `GET` isteği atar; sunucu tarafındaki oturum süresi sıfırlanır. Bazı yönetim panelleri ve güvenlik duvarları bu tür isteklerde oturumu kapatır; öyle bir sitede kapalı tutun. |
 | Sekme atılmasını kapat | Chrome'un bellek tasarrufu için sekmeyi kapatmasını (`autoDiscardable: false`) engeller. |
 
 ### Kurulum
@@ -39,10 +39,10 @@ Yalnızca sizin etkinleştirdiğiniz sitelerde, seçtiğiniz aralıkla (30 sn �
 - Sunucu, oturum süresinden bağımsız olarak **mutlak** bir süre sonra (ör. 8 saat) yeniden giriş istiyorsa bu engellenemez.
 - Etkinliği `event.isTrusted` ile doğrulayan sayfalar sentetik olayları yok sayar; bu durumda sunucu yenilemesi ve görünürlük ayarı yine çalışır.
 - Bilgisayar uykuya geçerse tarayıcı da durur.
-- Sunucu yenilemesi açık sayfanın yolunu sorgu dizesi (`?...`) olmadan ister; `logout`, `delete`, `callback`, `export` gibi işlem yolları ve token benzeri yollar yerine sitenin kök adresini (`/`) ister. Yönlendirmeler izlenmez, istek seçilen siteden dışarı çıkmaz.
+- Sunucu yenilemesi yalnızca sitenin kök adresini (`/`) ister; açık sayfanın yolu ve sorgu dizesi asla tekrar istenmez. Yönlendirmeler izlenmez (popup'ta "yönlendirildi" olarak uyarı verilir), istek seçilen siteden dışarı çıkmaz ve hiçbir zaman sayfa dışından (çerezsiz) gönderilmez.
 - Uzantı yalnızca popup'taki anahtarla açılır; Chrome'un uzantı menüsünden site izni vermek özelliği kendiliğinden açmaz.
 - Bir site izni o host'un tüm portlarını kapsar (Chrome eşleşme kalıbı kısıtı).
-- Site kapatıldığında açık sekmelerdeki görünürlük düzeltmesi geri alınır ve sekme atılabilir hale döner. İzin Chrome menüsünden geri alınırsa bu yapılamaz; sayfayı yenileyin.
+- Site kapatıldığında açık sekmelerdeki görünürlük düzeltmesi geri alınır ve sekme atılabilir hale döner. Uzantıdan sinyal gelmezse (izin geri alındı, uzantı kaldırıldı) düzeltme en geç 30 dakikada kendiliğinden kalkar.
 
 ---
 
@@ -56,10 +56,10 @@ Only on sites you enable, at the interval you choose (30 s – 10 min):
 
 - **Simulate user activity** — dispatches the `mousemove`, `pointermove`, `keydown/keyup (Shift)` and `scroll` events idle timers listen for. No clicks, no text input.
 - **Keep tab visible** — `document.hidden`, `visibilityState` and `hasFocus()` always report visible/focused.
-- **Refresh server session** — a same-site `GET` of the open page, so the server-side session timer resets. Falls back to the service worker if the tab cannot answer.
+- **Refresh server session** (off by default) — a `GET` of the site root made from inside the page with the page's own cookies, so a server-side session timer resets. Some admin panels and firewalls end the session on such requests; keep it off there.
 - **No tab discarding** — sets `autoDiscardable: false` on those tabs (restored when you disable the site).
 
-The keep-alive request uses the page path **without its query string**, falls back to `/` for action-like paths (`logout`, `delete`, `callback`, `export`, ...) and token-like segments, and does **not follow redirects**, so one-time links are never replayed and no request leaves the chosen site. Only the popup toggle enables a site: a host grant made from Chrome's extensions menu does not. Disabling a site reverts the visibility patch in open tabs and re-allows tab discarding. One site grant covers every port of that host.
+The keep-alive request always targets the site root, never the open page's path or query, does **not follow redirects** (a redirect is shown as a warning) and is never sent from outside the page without its cookies, so one-time links are not replayed and no request leaves the chosen site. Only the popup toggle enables a site: a host grant made from Chrome's extensions menu does not. Disabling a site reverts the visibility patch in open tabs and re-allows tab discarding; if heartbeats from the extension stop (access revoked, extension removed) the patch removes itself within 30 minutes. One site grant covers every port of that host.
 
 ### Install
 

@@ -43,18 +43,19 @@ try {
     await new Promise((r) => setTimeout(r, 100));
   }
   console.log('sw apis:', await sw.evaluate(() => Object.keys(globalThis.chrome || {}).sort().join(',')));
+  // Tab is opened before the site is enabled, as a real user would do.
+  const protectedPage = await browser.newPage();
+  await protectedPage.goto(`http://127.0.0.1:${port}/login?label=protected`);
   await sw.evaluate(() =>
     chrome.storage.local.set({
       sites: ['http://127.0.0.1'],
-      settings: { intervalMinutes: 0.5, simulateActivity: true, keepVisible: true, serverPing: true },
+      settings: { version: 2, intervalMinutes: 0.5, simulateActivity: true, keepVisible: true, serverPing: true },
     }),
   );
   await new Promise((r) => setTimeout(r, 1000));
   const registered = await sw.evaluate(() => chrome.scripting.getRegisteredContentScripts().then((s) => s.map((x) => x.id)));
   check(registered.includes('aot-keepalive') && registered.includes('aot-visibility'), `content scripts registered: ${registered}`);
 
-  const protectedPage = await browser.newPage();
-  await protectedPage.goto(`http://127.0.0.1:${port}/login?label=protected`);
   const controlPage = await browser.newPage();
   await controlPage.goto(`http://localhost:${port}/login?label=control`);
 
@@ -68,6 +69,8 @@ try {
   console.log(JSON.stringify(state));
   check(state.protected?.alive === true && !state.protected.clientLogout, 'protected session still alive');
   check(state.control?.alive === false, 'control session expired (proves the test app logs out)');
+  check(state.protected?.pings > 0, `keep-alive requests carried the session cookie: ${state.protected?.pings}`);
+  check(state.anonymous === 0, `no request reached the server without the session cookie: ${state.anonymous}`);
   check((await protectedPage.$eval('#state', (e) => e.textContent)) === 'logged in', 'protected page still shows logged in');
   check(protectedPage.url().endsWith('/app'), `protected page url ${protectedPage.url()}`);
 

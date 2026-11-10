@@ -44,6 +44,7 @@ function statusText(enabled, entry) {
   if (!entry || typeof entry.at !== 'number') return { text: t('statusWaiting'), warn: false };
   const time = timeFormat.format(new Date(entry.at));
   if (entry.ok) return { text: t('statusOk', [time]), warn: false };
+  if (entry.redirected) return { text: t('statusRedirected', [time]), warn: true };
   const code = entry.code ? `HTTP ${entry.code}` : t('networkError');
   return { text: t('statusFailed', [time, code]), warn: true };
 }

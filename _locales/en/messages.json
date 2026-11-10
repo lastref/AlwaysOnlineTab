@@ -1,26 +1,77 @@
 {
-  "extName": { "message": "AlwaysOnlineTab" },
-  "extDescription": { "message": "Keeps sessions alive on sites you choose by preventing idle logouts. No data collection." },
-  "currentSite": { "message": "This site" },
-  "settings": { "message": "Settings" },
-  "interval": { "message": "Signal interval" },
-  "seconds": { "message": "$1 sec" },
-  "minutes": { "message": "$1 min" },
-  "simulateActivity": { "message": "Simulate user activity" },
-  "simulateActivityHint": { "message": "Sends mouse and key events the page's idle timer listens for." },
-  "keepVisible": { "message": "Keep tab visible" },
-  "keepVisibleHint": { "message": "The page always sees itself as visible and focused." },
-  "serverPing": { "message": "Refresh server session" },
-  "serverPingHint": { "message": "Requests the current page in the background so the server session does not expire." },
-  "activeSites": { "message": "Active sites" },
-  "noSites": { "message": "No sites enabled yet." },
-  "remove": { "message": "Remove" },
-  "sourceCode": { "message": "Source code" },
-  "statusOff": { "message": "Off" },
-  "statusWaiting": { "message": "On, waiting for first signal" },
-  "statusOk": { "message": "On, last signal $1" },
-  "statusFailed": { "message": "On, last signal $1 failed ($2)" },
-  "networkError": { "message": "network error" },
-  "unsupportedPage": { "message": "Not available here" },
-  "unsupportedHint": { "message": "Works only on http and https pages." }
+  "extName": {
+    "message": "AlwaysOnlineTab"
+  },
+  "extDescription": {
+    "message": "Keeps sessions alive on sites you choose by preventing idle logouts. No data collection."
+  },
+  "currentSite": {
+    "message": "This site"
+  },
+  "settings": {
+    "message": "Settings"
+  },
+  "interval": {
+    "message": "Signal interval"
+  },
+  "seconds": {
+    "message": "$1 sec"
+  },
+  "minutes": {
+    "message": "$1 min"
+  },
+  "simulateActivity": {
+    "message": "Simulate user activity"
+  },
+  "simulateActivityHint": {
+    "message": "Sends mouse and key events the page's idle timer listens for."
+  },
+  "keepVisible": {
+    "message": "Keep tab visible"
+  },
+  "keepVisibleHint": {
+    "message": "The page always sees itself as visible and focused."
+  },
+  "serverPing": {
+    "message": "Refresh server session"
+  },
+  "serverPingHint": {
+    "message": "Off by default. Requests the site root in the background so a server-side session does not expire. Some sites (admin panels, firewalls) log you out on such requests; turn it off if that happens."
+  },
+  "activeSites": {
+    "message": "Active sites"
+  },
+  "noSites": {
+    "message": "No sites enabled yet."
+  },
+  "remove": {
+    "message": "Remove"
+  },
+  "sourceCode": {
+    "message": "Source code"
+  },
+  "statusOff": {
+    "message": "Off"
+  },
+  "statusWaiting": {
+    "message": "On, waiting for first signal"
+  },
+  "statusOk": {
+    "message": "On, last signal $1"
+  },
+  "statusFailed": {
+    "message": "On, last signal $1 failed ($2)"
+  },
+  "networkError": {
+    "message": "network error"
+  },
+  "unsupportedPage": {
+    "message": "Not available here"
+  },
+  "unsupportedHint": {
+    "message": "Works only on http and https pages."
+  },
+  "statusRedirected": {
+    "message": "On, last signal $1 was redirected (session may have ended)"
+  }
 }

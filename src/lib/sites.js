@@ -6,11 +6,17 @@ export const MAX_SITES = 200;
 
 const HOSTNAME_RE = /^(?:[a-z0-9_](?:[a-z0-9_-]*[a-z0-9_])?\.)*[a-z0-9_](?:[a-z0-9_-]*[a-z0-9_])?$|^\[[0-9a-f:.]+\]$/;
 
+// Bump when a default changes in a way that must override stored values.
+export const SETTINGS_VERSION = 2;
+
 export const DEFAULT_SETTINGS = Object.freeze({
+  version: SETTINGS_VERSION,
   intervalMinutes: 1,
   simulateActivity: true,
   keepVisible: true,
-  serverPing: true,
+  // Off by default: some sites (admin panels, firewalls) end the session
+  // when they receive a request the page itself did not make.
+  serverPing: false,
 });
 
 /**
@@ -68,7 +74,9 @@ export function normalizeSites(raw) {
 export function normalizeSettings(raw) {
   const src = raw && typeof raw === 'object' ? raw : {};
   const interval = Number(src.intervalMinutes);
+  const current = src.version === SETTINGS_VERSION;
   return {
+    version: SETTINGS_VERSION,
     intervalMinutes: INTERVAL_CHOICES.includes(interval)
       ? interval
       : DEFAULT_SETTINGS.intervalMinutes,
@@ -78,40 +86,19 @@ export function normalizeSettings(raw) {
         : DEFAULT_SETTINGS.simulateActivity,
     keepVisible:
       typeof src.keepVisible === 'boolean' ? src.keepVisible : DEFAULT_SETTINGS.keepVisible,
+    // Settings saved before version 2 had this on by default; reset it.
     serverPing:
-      typeof src.serverPing === 'boolean' ? src.serverPing : DEFAULT_SETTINGS.serverPing,
+      current && typeof src.serverPing === 'boolean' ? src.serverPing : DEFAULT_SETTINGS.serverPing,
   };
 }
 
-// Path segments that usually perform an action when requested. The
-// keep-alive request falls back to the site root for these.
-const ACTION_SEGMENT_RE =
-  /(^|\/)(logout|log-out|logoff|signout|sign-out|sign_out|exit|invite|invitation|confirm|confirmation|verify|verification|reset|unsubscribe|activate|activation|accept|approve|reject|delete|remove|destroy|cancel|revoke|callback|oauth2?|authorize|sso|saml|magic|token|download|export|print)(\/|$|\.)/i;
-// A path segment that looks like a one-time token (long random string).
-const TOKEN_SEGMENT_RE = /(^|\/)[A-Za-z0-9_.~-]{24,}(\/|$)/;
-
 /**
- * URL used for the keep-alive request. Same origin and path, never the query
- * string or fragment, so one-time links are not replayed. Paths that look like
- * actions or carry tokens fall back to the site root.
+ * URL used for the keep-alive request: always the site root. The page's own
+ * path is never requested, so no action or one-time link can be replayed.
  */
 export function pingUrlFor(url) {
   if (!siteKeyFromUrl(url)) return null;
-  const { origin, pathname } = new URL(url);
-  let decoded = pathname;
-  try {
-    decoded = decodeURIComponent(pathname);
-  } catch {
-    return `${origin}/`;
-  }
-  if (ACTION_SEGMENT_RE.test(decoded) || TOKEN_SEGMENT_RE.test(decoded)) return `${origin}/`;
-  return `${origin}${pathname}`;
-}
-
-/** Interprets a fetch() Response made with redirect: 'manual'. */
-export function pingResult(res) {
-  if (res.type === 'opaqueredirect') return { ok: true, code: 0 };
-  return { ok: res.ok, code: res.status };
+  return `${new URL(url).origin}/`;
 }
 
 export function sameList(a, b) {

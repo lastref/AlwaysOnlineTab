@@ -2,8 +2,6 @@ import {
   normalizeSettings,
   normalizeSites,
   patternFor,
-  pingResult,
-  pingUrlFor,
   sameList,
   siteKeyFromPattern,
   siteKeyFromUrl,
@@ -16,7 +14,6 @@ const SCRIPT_VISIBILITY = 'aot-visibility';
 const KEEPALIVE_FILE = 'src/content/keepalive.js';
 const VISIBILITY_FILE = 'src/content/visibility.js';
 const MESSAGE_TIMEOUT_MS = 10_000;
-const FETCH_TIMEOUT_MS = 20_000;
 const BADGE_COLOR = '#2b2b2b';
 
 // ---------------------------------------------------------------- state ---
@@ -153,24 +150,6 @@ function withTimeout(promise, ms) {
   ]).finally(() => clearTimeout(timer));
 }
 
-/** Fallback request from the service worker (used when the tab cannot answer). */
-async function backgroundPing(url) {
-  try {
-    const res = await fetch(url, {
-      method: 'GET',
-      credentials: 'include',
-      cache: 'no-store',
-      // Never follow redirects: the request must not leave the chosen site.
-      redirect: 'manual',
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
-    res.body?.cancel().catch(() => {});
-    return pingResult(res);
-  } catch {
-    return { ok: false, code: 0 };
-  }
-}
-
 async function tick() {
   const { sites, settings } = await readState();
   const entries = await matchingTabs(sites);
@@ -195,7 +174,7 @@ async function tick() {
               type: 'aot:tick',
               simulate: settings.simulateActivity,
               ping: wantsPing,
-              pingUrl: wantsPing ? pingUrlFor(tab.url) : null,
+              intervalMs: settings.intervalMinutes * 60_000,
             }),
             MESSAGE_TIMEOUT_MS,
           );
@@ -207,15 +186,15 @@ async function tick() {
         }
       }
 
-      if (!wantsPing) return;
-      if (!reply || typeof reply.ok !== 'boolean') {
-        if (!(await stillEnabled(key))) return;
-        const url = pingUrlFor(tab.url);
-        reply = url ? await backgroundPing(url) : { ok: false, code: 0 };
-      }
+      // The request is only ever made from inside the page, with the page's
+      // own cookies. There is deliberately no fallback from the service
+      // worker: a request without the session cookie can make the server
+      // issue a new session and log the user out.
+      if (!wantsPing || !reply || typeof reply.ok !== 'boolean') return;
       results[key] = {
         at: Date.now(),
         ok: reply.ok,
+        redirected: reply.redirected === true,
         code: Number.isInteger(reply.code) ? reply.code : 0,
       };
     }),

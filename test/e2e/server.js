@@ -7,6 +7,7 @@ import http from 'node:http';
 
 export function startServer({ serverTtlMs, clientIdleMs }) {
   const sessions = new Map(); // sid -> { lastSeen, clientLogout, label }
+  let anonymous = 0; // requests to app pages without any session cookie
 
   const page = (label) => `<!doctype html><meta charset="utf-8"><title>${label}</title>
 <h1 id="state">logged in</h1>
@@ -39,9 +40,11 @@ export function startServer({ serverTtlMs, clientIdleMs }) {
     if (url.pathname === '/debug') {
       res.setHeader('content-type', 'application/json');
       const out = {};
-      for (const [, s] of sessions) out[s.label] = { alive: Boolean(alive(s)), clientLogout: s.clientLogout, requests: s.requests };
+      out.anonymous = anonymous;
+      for (const [, s] of sessions) out[s.label] = { alive: Boolean(alive(s)), clientLogout: s.clientLogout, requests: s.requests, pings: s.pings || 0 };
       return res.end(JSON.stringify(out));
     }
+    if (!sid && (url.pathname === '/' || url.pathname === '/app')) anonymous += 1;
     if (url.pathname === '/login') {
       const id = randomBytes(16).toString('hex');
       sessions.set(id, { lastSeen: Date.now(), clientLogout: false, label: url.searchParams.get('label') || id, requests: 0 });
@@ -61,6 +64,14 @@ export function startServer({ serverTtlMs, clientIdleMs }) {
       session.requests += 1;
       res.setHeader('content-type', 'text/html; charset=utf-8');
       return res.end(page(session.label));
+    }
+    // Like typical session middleware: any request with a valid session
+    // cookie keeps the session alive.
+    if (alive(session)) {
+      session.lastSeen = Date.now();
+      session.pings = (session.pings || 0) + 1;
+      res.writeHead(200, { 'content-type': 'text/plain' });
+      return res.end('home');
     }
     res.writeHead(200, { 'content-type': 'text/plain' });
     res.end('logged out');

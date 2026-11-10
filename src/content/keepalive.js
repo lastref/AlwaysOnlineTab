@@ -28,20 +28,10 @@
     window.dispatchEvent(new Event('scroll'));
   }
 
-  // The service worker picks a sanitised URL (no query string, no action or
-  // token paths). Anything that is not on this page's origin is ignored.
-  function safePingUrl(candidate) {
-    try {
-      const url = new URL(candidate);
-      if (url.origin === location.origin) return `${url.origin}${url.pathname}`;
-    } catch {
-      /* fall through */
-    }
-    return `${location.origin}/`;
-  }
-
-  async function ping(candidate) {
-    const url = safePingUrl(candidate);
+  // Always the site root: the page's own path is never re-requested, so no
+  // action or one-time link can be replayed.
+  async function ping() {
+    const url = `${location.origin}/`;
     try {
       const res = await fetch(url, {
         method: 'GET',
@@ -51,17 +41,25 @@
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
       res.body?.cancel().catch(() => {});
-      if (res.type === 'opaqueredirect') return { ok: true, code: 0 };
+      // A redirect usually means "go to the login page": report it as such.
+      if (res.type === 'opaqueredirect') return { ok: false, code: 0, redirected: true };
       return { ok: res.ok, code: res.status };
     } catch {
       return { ok: false, code: 0 };
     }
   }
 
+  document.dispatchEvent(new CustomEvent('mssoft-aot-heartbeat', { detail: 0 }));
+
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Accept only the service worker of this very extension.
     if (sender.id !== chrome.runtime.id || sender.tab) return false;
     if (!message || message.type !== 'aot:tick') return false;
+
+    // Heartbeat for the MAIN-world visibility patch: without it the patch
+    // removes itself (e.g. after the user revokes access).
+    const intervalMs = Number.isFinite(message.intervalMs) ? message.intervalMs : 0;
+    document.dispatchEvent(new CustomEvent('mssoft-aot-heartbeat', { detail: intervalMs }));
 
     if (message.simulate === true) simulateActivity();
     if (!isTop) return false;
@@ -70,7 +68,7 @@
       sendResponse({ ok: true, code: 0, skipped: true });
       return false;
     }
-    ping(message.pingUrl).then(sendResponse);
+    ping().then(sendResponse);
     return true;
   });
 })();
