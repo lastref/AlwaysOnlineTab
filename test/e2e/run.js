@@ -77,6 +77,19 @@ try {
   const status = await sw.evaluate(() => chrome.storage.session.get('status'));
   check(status.status?.['http://127.0.0.1']?.ok === true, `ping status recorded: ${JSON.stringify(status.status)}`);
 
+  const isNative = () =>
+    Object.getOwnPropertyDescriptor(Document.prototype, 'hidden').get.toString().includes('[native code]');
+  check((await protectedPage.evaluate(isNative)) === false, 'visibility patch active while enabled');
+  await sw.evaluate(() =>
+    chrome.storage.local.get('settings').then(({ settings }) =>
+      chrome.storage.local.set({ settings: { ...settings, keepVisible: false } }),
+    ),
+  );
+  await new Promise((r) => setTimeout(r, 1500));
+  check((await protectedPage.evaluate(isNative)) === true, 'visibility patch reverted when option turned off');
+  const ids = await sw.evaluate(() => chrome.scripting.getRegisteredContentScripts().then((s) => s.map((x) => x.id)));
+  check(!ids.includes('aot-visibility'), `visibility script unregistered: ${ids}`);
+
   if (SHOTS) {
     await protectedPage.bringToFront();
     await sw.evaluate(() => chrome.action.openPopup());

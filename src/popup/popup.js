@@ -6,6 +6,7 @@ import {
   patternFor,
   siteKeyFromUrl,
 } from '../lib/sites.js';
+import { restorePageVisibility } from '../lib/restore.js';
 
 const $ = (id) => document.getElementById(id);
 const t = (key, subs) => chrome.i18n.getMessage(key, subs) || key;
@@ -93,18 +94,38 @@ async function render() {
 }
 
 async function enableSite(key) {
+  // Record the user's intent first (not awaited) so the service worker can
+  // finish enabling even if this popup closes during the permission prompt.
+  const intent = chrome.storage.session.set({ pendingEnable: key });
   // Must be the first await so it stays inside the user gesture.
   const granted = await chrome.permissions.request({ origins: [patternFor(key)] });
-  if (!granted) return;
+  await intent.catch(() => {});
+  if (!granted) {
+    await chrome.storage.session.remove('pendingEnable').catch(() => {});
+    return;
+  }
   const { sites } = await readState();
   await chrome.storage.local.set({ sites: normalizeSites([...sites, key]) });
+  await chrome.storage.session.remove('pendingEnable').catch(() => {});
 }
 
 async function disableSite(key) {
   // Give Chrome back the right to discard these tabs while we can still see them.
+  // Undo every page change while host access is still held.
   const tabs = await chrome.tabs.query({ url: patternFor(key) }).catch(() => []);
   await Promise.all(
-    tabs.map((tab) => chrome.tabs.update(tab.id, { autoDiscardable: true }).catch(() => {})),
+    tabs.map((tab) =>
+      Promise.all([
+        chrome.tabs.update(tab.id, { autoDiscardable: true }).catch(() => {}),
+        chrome.scripting
+          .executeScript({
+            target: { tabId: tab.id, allFrames: true },
+            world: 'MAIN',
+            func: restorePageVisibility,
+          })
+          .catch(() => {}),
+      ]),
+    ),
   );
   const { sites } = await readState();
   await chrome.storage.local.set({ sites: sites.filter((k) => k !== key) });

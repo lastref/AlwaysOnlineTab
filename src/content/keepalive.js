@@ -28,9 +28,20 @@
     window.dispatchEvent(new Event('scroll'));
   }
 
-  async function ping() {
-    // Same path without query/fragment: never replays one-time links.
-    const url = `${location.origin}${location.pathname}`;
+  // The service worker picks a sanitised URL (no query string, no action or
+  // token paths). Anything that is not on this page's origin is ignored.
+  function safePingUrl(candidate) {
+    try {
+      const url = new URL(candidate);
+      if (url.origin === location.origin) return `${url.origin}${url.pathname}`;
+    } catch {
+      /* fall through */
+    }
+    return `${location.origin}/`;
+  }
+
+  async function ping(candidate) {
+    const url = safePingUrl(candidate);
     try {
       const res = await fetch(url, {
         method: 'GET',
@@ -59,7 +70,7 @@
       sendResponse({ ok: true, code: 0, skipped: true });
       return false;
     }
-    ping().then(sendResponse);
+    ping(message.pingUrl).then(sendResponse);
     return true;
   });
 })();

@@ -8,6 +8,7 @@ import {
   siteKeyFromPattern,
   siteKeyFromUrl,
 } from './lib/sites.js';
+import { restorePageVisibility } from './lib/restore.js';
 
 const ALARM = 'aot-tick';
 const SCRIPT_KEEPALIVE = 'aot-keepalive';
@@ -130,6 +131,12 @@ async function stillEnabled(key) {
   return chrome.permissions.contains({ origins: [patternFor(key)] }).catch(() => false);
 }
 
+async function restoreVisibility(tabId) {
+  await chrome.scripting
+    .executeScript({ target: { tabId, allFrames: true }, world: 'MAIN', func: restorePageVisibility })
+    .catch(() => {});
+}
+
 async function protectTab(tab) {
   if (tab.autoDiscardable !== false) {
     await chrome.tabs.update(tab.id, { autoDiscardable: false }).catch(() => {});
@@ -188,6 +195,7 @@ async function tick() {
               type: 'aot:tick',
               simulate: settings.simulateActivity,
               ping: wantsPing,
+              pingUrl: wantsPing ? pingUrlFor(tab.url) : null,
             }),
             MESSAGE_TIMEOUT_MS,
           );
@@ -248,14 +256,20 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ALARM) serial(tick);
 });
 
-// The popup may close while the permission prompt is open, so the grant
-// itself is the source of truth for enabling a site.
+// The popup may close while the permission prompt is open. It records the
+// user's intent in session storage before asking, and only a grant that
+// matches that intent enables the site. A host grant made elsewhere (for
+// example from Chrome's extensions menu) never turns the feature on.
 chrome.permissions.onAdded.addListener(({ origins = [] }) => {
   const added = origins.map(siteKeyFromPattern).filter(Boolean);
   if (!added.length) return;
   serial(async () => {
+    const { pendingEnable } = await chrome.storage.session.get('pendingEnable');
+    const intended = added.filter((key) => key === pendingEnable);
+    if (!intended.length) return;
+    await chrome.storage.session.remove('pendingEnable');
     const { sites } = await readState();
-    await chrome.storage.local.set({ sites: normalizeSites([...sites, ...added]) });
+    await chrome.storage.local.set({ sites: normalizeSites([...sites, ...intended]) });
   });
 });
 
@@ -274,13 +288,21 @@ chrome.permissions.onRemoved.addListener(({ origins = [] }) => {
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local' || (!changes.sites && !changes.settings)) return;
   serial(async () => {
-    const before = new Set(normalizeSites(changes.sites?.oldValue));
+    const beforeList = normalizeSites(changes.sites?.oldValue);
+    const before = new Set(beforeList);
     const { sites, settings } = await sync();
     const fresh = changes.sites ? sites.filter((k) => !before.has(k)) : [];
-    const visibilityTurnedOn =
-      changes.settings &&
-      normalizeSettings(changes.settings.newValue).keepVisible &&
-      !normalizeSettings(changes.settings.oldValue).keepVisible;
+    const gone = changes.sites ? beforeList.filter((k) => !sites.includes(k)) : [];
+    const oldVisible = normalizeSettings(changes.settings?.oldValue).keepVisible;
+    const newVisible = normalizeSettings(changes.settings?.newValue).keepVisible;
+    const visibilityTurnedOn = Boolean(changes.settings) && newVisible && !oldVisible;
+    const visibilityTurnedOff = Boolean(changes.settings) && !newVisible && oldVisible;
+
+    // Undo the page patch where it no longer belongs (best effort: only
+    // possible while host access is still held).
+    const undo = visibilityTurnedOff ? [...sites, ...gone] : gone;
+    for (const { tab } of await matchingTabs(undo)) await restoreVisibility(tab.id);
+
     const targets = visibilityTurnedOn ? sites : fresh;
     if (!targets.length) return;
     for (const { tab } of await matchingTabs(targets)) {

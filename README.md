@@ -39,9 +39,10 @@ Yalnızca sizin etkinleştirdiğiniz sitelerde, seçtiğiniz aralıkla (30 sn �
 - Sunucu, oturum süresinden bağımsız olarak **mutlak** bir süre sonra (ör. 8 saat) yeniden giriş istiyorsa bu engellenemez.
 - Etkinliği `event.isTrusted` ile doğrulayan sayfalar sentetik olayları yok sayar; bu durumda sunucu yenilemesi ve görünürlük ayarı yine çalışır.
 - Bilgisayar uykuya geçerse tarayıcı da durur.
-- Sunucu yenilemesi açık sayfanın yolunu sorgu dizesi (`?...`) olmadan ister; tek kullanımlık bağlantılar tekrar çağrılmaz. Yönlendirmeler izlenmez, istek seçilen siteden dışarı çıkmaz.
+- Sunucu yenilemesi açık sayfanın yolunu sorgu dizesi (`?...`) olmadan ister; `logout`, `delete`, `callback`, `export` gibi işlem yolları ve token benzeri yollar yerine sitenin kök adresini (`/`) ister. Yönlendirmeler izlenmez, istek seçilen siteden dışarı çıkmaz.
+- Uzantı yalnızca popup'taki anahtarla açılır; Chrome'un uzantı menüsünden site izni vermek özelliği kendiliğinden açmaz.
 - Bir site izni o host'un tüm portlarını kapsar (Chrome eşleşme kalıbı kısıtı).
-- Site kapatıldığında açık sekmelerdeki görünürlük düzeltmesi sayfa yenilenene kadar kalır; yeni sinyal gönderilmez.
+- Site kapatıldığında açık sekmelerdeki görünürlük düzeltmesi geri alınır ve sekme atılabilir hale döner. İzin Chrome menüsünden geri alınırsa bu yapılamaz; sayfayı yenileyin.
 
 ---
 
@@ -58,7 +59,7 @@ Only on sites you enable, at the interval you choose (30 s – 10 min):
 - **Refresh server session** — a same-site `GET` of the open page, so the server-side session timer resets. Falls back to the service worker if the tab cannot answer.
 - **No tab discarding** — sets `autoDiscardable: false` on those tabs (restored when you disable the site).
 
-The keep-alive request uses the page path **without its query string** and does **not follow redirects**, so one-time links are never replayed and no request leaves the chosen site. One site grant covers every port of that host. After disabling a site, reload already open tabs to drop the visibility override.
+The keep-alive request uses the page path **without its query string**, falls back to `/` for action-like paths (`logout`, `delete`, `callback`, `export`, ...) and token-like segments, and does **not follow redirects**, so one-time links are never replayed and no request leaves the chosen site. Only the popup toggle enables a site: a host grant made from Chrome's extensions menu does not. Disabling a site reverts the visibility patch in open tabs and re-allows tab discarding. One site grant covers every port of that host.
 
 ### Install
 

@@ -1,6 +1,6 @@
 {
   "name": "always-online-tab",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "AlwaysOnlineTab by MSSOFT - keeps sessions alive on sites you choose.",
   "license": "MIT",

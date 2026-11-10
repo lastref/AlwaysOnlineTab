@@ -83,15 +83,29 @@ export function normalizeSettings(raw) {
   };
 }
 
+// Path segments that usually perform an action when requested. The
+// keep-alive request falls back to the site root for these.
+const ACTION_SEGMENT_RE =
+  /(^|\/)(logout|log-out|logoff|signout|sign-out|sign_out|exit|invite|invitation|confirm|confirmation|verify|verification|reset|unsubscribe|activate|activation|accept|approve|reject|delete|remove|destroy|cancel|revoke|callback|oauth2?|authorize|sso|saml|magic|token|download|export|print)(\/|$|\.)/i;
+// A path segment that looks like a one-time token (long random string).
+const TOKEN_SEGMENT_RE = /(^|\/)[A-Za-z0-9_.~-]{24,}(\/|$)/;
+
 /**
- * URL used for the keep-alive request: same origin and path, but without
- * query string or fragment, so one-time links (OAuth callbacks, magic links,
- * "?action=..." URLs) are never replayed.
+ * URL used for the keep-alive request. Same origin and path, never the query
+ * string or fragment, so one-time links are not replayed. Paths that look like
+ * actions or carry tokens fall back to the site root.
  */
 export function pingUrlFor(url) {
   if (!siteKeyFromUrl(url)) return null;
-  const parsed = new URL(url);
-  return `${parsed.origin}${parsed.pathname}`;
+  const { origin, pathname } = new URL(url);
+  let decoded = pathname;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    return `${origin}/`;
+  }
+  if (ACTION_SEGMENT_RE.test(decoded) || TOKEN_SEGMENT_RE.test(decoded)) return `${origin}/`;
+  return `${origin}${pathname}`;
 }
 
 /** Interprets a fetch() Response made with redirect: 'manual'. */

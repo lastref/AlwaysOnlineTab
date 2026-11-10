@@ -73,7 +73,6 @@ test('normalizeSettings falls back to safe defaults', () => {
 
 test('pingUrlFor drops query and fragment (no replay of one-time links)', () => {
   assert.equal(pingUrlFor('https://a.com/p?q=1#frag'), 'https://a.com/p');
-  assert.equal(pingUrlFor('https://a.com/oauth/callback?code=secret&state=x'), 'https://a.com/oauth/callback');
   assert.equal(pingUrlFor('http://h.local:8080/app/'), 'http://h.local:8080/app/');
   assert.equal(pingUrlFor('chrome://settings'), null);
 });
@@ -92,4 +91,22 @@ test('pingResult treats a blocked redirect as a delivered request', () => {
   assert.deepEqual(pingResult({ type: 'opaqueredirect', ok: false, status: 0 }), { ok: true, code: 0 });
   assert.deepEqual(pingResult({ type: 'basic', ok: false, status: 401 }), { ok: false, code: 401 });
   assert.deepEqual(pingResult({ type: 'basic', ok: true, status: 200 }), { ok: true, code: 200 });
+});
+
+test('pingUrlFor never targets action or token paths', () => {
+  for (const [input, expected] of [
+    ['https://a.com/logout', 'https://a.com/'],
+    ['https://a.com/account/sign-out?next=/', 'https://a.com/'],
+    ['https://a.com/invite/AbCdEf0123456789xyzABCDEF', 'https://a.com/'],
+    ['https://a.com/users/42/delete', 'https://a.com/'],
+    ['https://a.com/oauth/callback?code=x', 'https://a.com/'],
+    ['https://a.com/reports/export.csv', 'https://a.com/'],
+    ['https://a.com/%6C%6F%67%6F%75%74', 'https://a.com/'],
+    ['https://a.com/%E0%A4%A', 'https://a.com/'],
+    ['https://a.com/crm/customers/42', 'https://a.com/crm/customers/42'],
+    ['https://a.com/dashboard', 'https://a.com/dashboard'],
+    ['https://a.com/logbook', 'https://a.com/logbook'],
+  ]) {
+    assert.equal(pingUrlFor(input), expected, input);
+  }
 });
