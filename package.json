@@ -1,0 +1,14 @@
+{
+  "name": "always-online-tab",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AlwaysOnlineTab by MSSOFT - keeps sessions alive on sites you choose.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "icons": "python3 -I scripts/make-icons.py",
+    "pack": "sh scripts/pack.sh",
+    "test:e2e": "node test/e2e/run.js"
+  }
+}

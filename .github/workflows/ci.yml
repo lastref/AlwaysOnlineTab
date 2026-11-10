@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate JSON
+        run: |
+          for f in manifest.json _locales/*/messages.json; do
+            node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))"
+          done
+      - name: Check for remote code and dangerous APIs
+        run: |
+          if grep -RInE "eval\(|new Function|innerHTML|outerHTML|insertAdjacentHTML|document\.write|importScripts|https?://[^\"' ]+\.js" src; then
+            echo "Forbidden pattern found"; exit 1
+          fi
+      - name: Unit tests
+        run: npm test
+      - name: Package
+        run: sh scripts/pack.sh

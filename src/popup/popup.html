@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AlwaysOnlineTab</title>
+    <link rel="stylesheet" href="popup.css" />
+    <script type="module" src="popup.js"></script>
+  </head>
+  <body>
+    <header class="head">
+      <span class="name">AlwaysOnlineTab</span>
+      <span class="vendor">MSSOFT</span>
+    </header>
+
+    <section class="block" aria-labelledby="site-label">
+      <div class="label" id="site-label" data-i18n="currentSite"></div>
+      <div class="row">
+        <div class="site">
+          <div class="host" id="host"></div>
+          <div class="meta" id="status"></div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle" role="switch" aria-labelledby="site-label" />
+          <span class="track" aria-hidden="true"></span>
+        </label>
+      </div>
+    </section>
+
+    <section class="block" aria-labelledby="settings-label">
+      <div class="label" id="settings-label" data-i18n="settings"></div>
+      <div class="row">
+        <label for="interval" data-i18n="interval"></label>
+        <select id="interval"></select>
+      </div>
+      <label class="check">
+        <input type="checkbox" id="simulateActivity" />
+        <span>
+          <span data-i18n="simulateActivity"></span>
+          <span class="hint" data-i18n="simulateActivityHint"></span>
+        </span>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="keepVisible" />
+        <span>
+          <span data-i18n="keepVisible"></span>
+          <span class="hint" data-i18n="keepVisibleHint"></span>
+        </span>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="serverPing" />
+        <span>
+          <span data-i18n="serverPing"></span>
+          <span class="hint" data-i18n="serverPingHint"></span>
+        </span>
+      </label>
+    </section>
+
+    <section class="block" aria-labelledby="sites-label">
+      <div class="label"><span id="sites-label" data-i18n="activeSites"></span> <span id="count"></span></div>
+      <ul class="sites" id="sites"></ul>
+      <p class="empty" id="empty" data-i18n="noSites"></p>
+    </section>
+
+    <footer class="foot">
+      <span id="version"></span>
+      <a id="source" href="https://github.com/lastref/AlwaysOnlineTab" target="_blank" rel="noopener noreferrer" data-i18n="sourceCode"></a>
+    </footer>
+  </body>
+</html>
